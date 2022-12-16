@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "endian.h": "c",
+        "host.h": "c",
+        "misc.h": "c",
+        "machine.h": "c",
+        "types.h": "c",
+        "bpred_bimodal.h": "c"
+    }
+}
