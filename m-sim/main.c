@@ -195,7 +195,7 @@ int running = FALSE;
 char* gen_sim_runs_id()
 {
 	int cnt;
-	char total_sim_runs_path[] = "../simulation-results/total_sim_runs.txt";
+	char total_sim_runs_path[] = "../m-sim-trial/simulation-results/total_sim_runs.txt";
 
 	FILE *total_sim_runs_file = fopen(total_sim_runs_path, "r");
 	if (!total_sim_runs_file) { // Check if the file exists already.
@@ -203,7 +203,7 @@ char* gen_sim_runs_id()
 		if (!total_sim_runs_file) return "Couldn't open file"; // Failed to open file location.
 		fprintf(total_sim_runs_file, "%d", 1);
 		fclose(total_sim_runs_file);
-		return "../simulation-results/run_1.txt";
+		return "../m-sim-trial/simulation-results/run_1.txt";
 	}
 
 	fscanf(total_sim_runs_file, "%d", &cnt);
@@ -214,7 +214,7 @@ char* gen_sim_runs_id()
 	fprintf(total_sim_runs_file, "%d", cnt);
 	fclose(total_sim_runs_file);
 
-	static char simulation_run_path[50] = "../simulation-results/run_";
+	static char simulation_run_path[50] = "../m-sim-trial/simulation-results/run_";
 	// Converting int to string -__
 	char buffer[30]; // Dynamically allocating the size of the buffer.
 	snprintf(buffer, sizeof(buffer), "%d.txt", cnt);
@@ -245,6 +245,7 @@ void sim_print_stats(FILE *fd)
 	//compute simulator memory usag
 	sim_mem_usage = (sbrk(0) - &etext) / 1024;
 #endif
+	char buffer[100];
 	freopen(gen_sim_runs_id(), "w", fd); // NOTE: using this to output the sim-results to a txt file for later use.
 	//print simulation stats
 	fprintf(fd, "\nsim: ** simulation statistics **\n");
