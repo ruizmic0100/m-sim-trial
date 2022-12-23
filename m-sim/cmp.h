@@ -116,15 +116,18 @@ class core_t
 	//Architectural Register State
 		//This determines how many contexts a core can handle as well as creates the pool of architectural registers
 		//Call this at core initialization time
-		void reserveArch(int contexts_per_core);
+		void reserveArch(int contexts_per_core); // (MSR): A place to cap, as well.
 
 		//These are lists of the archtectural registers
 		std::vector<int> int_regs, fp_regs;
 
+		// (MSR): My architeectural register cap value.
+		unsigned int reg_cap;
+
 		//Returns a vector with 32 int Arch registers and 32 fp Arch registers
 		//These represent a set of architectural registers for a context to use
 		//These must be given to the context, this function allocates those registers for use!
-		std::vector<int> getArch();
+		std::vector<int> getArch(); // (MSR): A place to cap, as well.
 
 	//Core Migration
 		//Transfers a context and its instruction counter to another core
@@ -145,7 +148,7 @@ class core_t
 		//Rollbacks each instruction one at a time until targetinst is reached, which is not removed
 		//If branch_misprediction, rolls back the RAS and fixes the PC accordingly.
 		//FIXME: Can not rollback past certain syscalls, none of these have been identified yet
-		void rollbackTo(context & target, counter_t & sim_num_insn, ROB_entry * targetinst, bool branch_misprediction);
+		void rollbackTo(context & target, counter_t & sim_num_insn, ROB_entry * targetinst, bool branch_misprediction, int (&arch_reg_cnts)[4]);
 
 		//Squashes an in-flight instruction
 		void Clear_Entry_From_Queues(ROB_entry * entry);
@@ -229,7 +232,7 @@ public:
 private:
 		//Part of TransferContext: Returns a context's architectural registers to the core
 		//Call after flushing a context only!
-		void returnArch(context & thecontext);
+		void returnArch(context & thecontext); // (MSR): Potentially a place to cap, as well.
 };
 
 #endif

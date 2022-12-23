@@ -93,7 +93,7 @@ int physical_reg_file::find_free_physreg()
 	return -1;
 }
 
-reg_file_t::reg_file_t()
+reg_file_t::reg_file_t() : arch_reg_cnts {0,0,0,0}
 {};
 
 void reg_file_t::resize(int size)
@@ -132,7 +132,7 @@ physreg_t & reg_file_t::reg_file_access(int index,reg_type type)
 }
 
 // Allocates a physical register to the specified ROB entry
-int reg_file_t::alloc_physreg(ROB_entry* rob_entry,tick_t sim_cycle,std::vector<int> & rename_table)
+int reg_file_t::alloc_physreg(ROB_entry* rob_entry,tick_t sim_cycle,std::vector<int> & rename_table, int display_context_id)
 {
 	reg_set my_regs;
 	get_reg_set(&my_regs, rob_entry->op);

@@ -57,6 +57,7 @@
 #include"regs.h"
 #include<vector>
 
+
 //holds the current state for a register
 enum reg_state
 {
@@ -108,6 +109,8 @@ class physical_reg_file
 class reg_file_t
 {
 	public:
+
+		int arch_reg_cnts[4];
 		reg_file_t();
 		void resize(int size);
 
@@ -118,7 +121,7 @@ class reg_file_t
 		physreg_t & reg_file_access(int index,reg_type type);
 
 		// Allocates a physical register to the specified ROB entry
-		int alloc_physreg(ROB_entry* rob_entry,tick_t sim_cycle,std::vector<int> & rename_table);
+		int alloc_physreg(ROB_entry* rob_entry,tick_t sim_cycle,std::vector<int> & rename_table, int display_context_id);
 
 		//Returns the set of register types used by a specific operation
 		//This doesn't need to be in reg_file_t, but is for isolation purposes

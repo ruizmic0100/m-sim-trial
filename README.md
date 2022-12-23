@@ -40,6 +40,9 @@ Use the build script at root directory of repository
 What did you learn while building this project? What challenges did you face and how did you overcome them?
 
 
+In C++, global constructors are executed before ```main()```
+
+
 ## Usage/Examples
 ---
 Run the program using the run scripts

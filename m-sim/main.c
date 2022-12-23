@@ -245,7 +245,6 @@ void sim_print_stats(FILE *fd)
 	//compute simulator memory usag
 	sim_mem_usage = (sbrk(0) - &etext) / 1024;
 #endif
-	char buffer[100];
 	freopen(gen_sim_runs_id(), "w", fd); // NOTE: using this to output the sim-results to a txt file for later use.
 	//print simulation stats
 	fprintf(fd, "\nsim: ** simulation statistics **\n");

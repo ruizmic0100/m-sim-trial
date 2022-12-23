@@ -468,22 +468,22 @@ void sim_reg_options(opt_odb_t *odb)
 		ptrace_opts, /* arr_sz */2, &ptrace_nelt, /* default */NULL,
 		/* !print */FALSE, /* format */NULL, /* !accrue */FALSE);
 
-	opt_reg_note(odb,
-		"  Pipetrace range arguments are formatted as follows:\n"
-		"\n"
-		"    {{@|#}<start>}:{{@|#|+}<end>}\n"
-		"\n"
-		"  Both ends of the range are optional, if neither are specified, the entire execution is traced. Ranges that start with a `@' designate an address\n"
-		"  range to be traced, those that start with an `#' designate a cycle count range. All other range values represent an instruction count range. The\n"
-		"  second argument, if specified with a `+', indicates a value relative to the first argument, e.g., 1000:+100 == 1000:1100. Program symbols may\n"
-		"  be used in all contexts.\n"
-		"\n"
-		"    Examples:   -ptrace FOO.trc #0:#1000\n"
-		"                -ptrace BAR.trc @2000:\n"
-		"                -ptrace BLAH.trc :1500\n"
-		"                -ptrace UXXE.trc :\n"
-		"                -ptrace FOOBAR.trc @main:+278\n"
-		);
+	// opt_reg_note(odb,
+	// 	"  Pipetrace range arguments are formatted as follows:\n"
+	// 	"\n"
+	// 	"    {{@|#}<start>}:{{@|#|+}<end>}\n"
+	// 	"\n"
+	// 	"  Both ends of the range are optional, if neither are specified, the entire execution is traced. Ranges that start with a `@' designate an address\n"
+	// 	"  range to be traced, those that start with an `#' designate a cycle count range. All other range values represent an instruction count range. The\n"
+	// 	"  second argument, if specified with a `+', indicates a value relative to the first argument, e.g., 1000:+100 == 1000:1100. Program symbols may\n"
+	// 	"  be used in all contexts.\n"
+	// 	"\n"
+	// 	"    Examples:   -ptrace FOO.trc #0:#1000\n"
+	// 	"                -ptrace BAR.trc @2000:\n"
+	// 	"                -ptrace BLAH.trc :1500\n"
+	// 	"                -ptrace UXXE.trc :\n"
+	// 	"                -ptrace FOOBAR.trc @main:+278\n"
+	// 	);
 
 	opt_reg_string_list(odb, "-pcstat","",
 		"profile stat(s) against text addr's (mult uses ok)",
@@ -640,7 +640,7 @@ void sim_reg_options(opt_odb_t *odb)
 			/* print */TRUE, /* format */NULL);
 
 		//cache options
-		if(i==0)	//Notes should only appear once
+		if(i==1)	//Notes should only appear once
 		{
 			opt_reg_note(odb,
 				"  The cache config parameter <config> has the following format:\n"
@@ -726,7 +726,7 @@ void sim_reg_options(opt_odb_t *odb)
 			/* print */TRUE, /* format */NULL);
 
 		//branch predictor options
-		if(i==0)	//Notes should only appear once
+		if(i==1)	//Notes should only appear once
 		{
 			opt_reg_note(odb,
 				"  Branch predictor configuration examples for 2-level predictor:\n"
@@ -825,21 +825,26 @@ void sim_reg_options(opt_odb_t *odb)
 			cores[i].cbtb_config, cores[i].cbtb_nelt, &cores[i].cbtb_nelt,
 			/* default */cores[i].cbtb_config,
 			/* print */TRUE, /* format */NULL, /* !accrue */FALSE);
+
+		// opt_reg_uint(odb, "-rename_reg_cap", "",
+		// 			"Cap value of rename registers allowed per thread at a time.",
+		// 			&cap_value, /* default*/ 32,
+		// 			/* print */TRUE, /* format */ NULL);
 	}
 
 	//mem options
-	opt_reg_note(odb,
-		"  The main memory configuration parameter has the following format:\n"
-		"\n"
-		"    <type>:<width>:<config>\n"
-		"\n"
-		"    <type>   - Type of main memory modeling - see dram.h\n"
-		"    <width>  - Width of the memory bus in bytes\n"
-		"    <config> - Configuration string - see dram.h\n"
-		"\n"
-		"    Examples:   -mem:config chunk:4:300:2\n"
-		"                -mem:config basic:4:6:12:90:90:90:8:2048\n"
-		);
+	// opt_reg_note(odb,
+	// 	"  The main memory configuration parameter has the following format:\n"
+	// 	"\n"
+	// 	"    <type>:<width>:<config>\n"
+	// 	"\n"
+	// 	"    <type>   - Type of main memory modeling - see dram.h\n"
+	// 	"    <width>  - Width of the memory bus in bytes\n"
+	// 	"    <config> - Configuration string - see dram.h\n"
+	// 	"\n"
+	// 	"    Examples:   -mem:config chunk:4:300:2\n"
+	// 	"                -mem:config basic:4:6:12:90:90:90:8:2048\n"
+	// 	);
 
 	opt_reg_string(odb, "-mem:config","",
 		 "Main memory configuration",
@@ -2045,6 +2050,7 @@ void commit(unsigned int core_num)
 			{
 				contexts[context_id].DCRA_int_rf--;
 				assert(contexts[context_id].DCRA_int_rf >= 0);
+				cores[core_num].reg_file.arch_reg_cnts[context_id]--;
 			}
 			else
 			{
@@ -2126,7 +2132,7 @@ void writeback(unsigned int core_num)
 			//recover processor state and reinitialize fetch to correct path
 			assert(rs->next_PC == contexts[rs->context_id].recover_PC);
 
-			cores[core_num].rollbackTo(contexts[rs->context_id],sim_num_insn,rs,1);
+			cores[core_num].rollbackTo(contexts[rs->context_id],sim_num_insn,rs,1, cores[core_num].reg_file.arch_reg_cnts);
 			//continue writeback of the branch/control instruction
 		}
 
@@ -3346,7 +3352,7 @@ void register_rename(unsigned int core_num)
 			contexts[disp_context_id].fetch_regs_PC = contexts[disp_context_id].fetch_pred_PC = regs->regs_PC += 4;
 
 			contexts[disp_context_id].interrupts &= ~0x10000000;
-			contexts_left.erase(contexts_left.begin()+current_context);
+			contexts_left.erase(contexts_left.begin()+current_context); // this stops it.
 			continue;
 		}
 
@@ -3441,6 +3447,7 @@ void register_rename(unsigned int core_num)
 			rs->L1_miss = rs->L2_miss = rs->L3_miss = 0;
 			rs->iq_entry_num = -1;
 			contexts[disp_context_id].last_op = RS_link(rs);
+			// printf("rs: rs->archreg = %i\t| src_archreg[0] = %i\t| src_archreg[1] = %i\t| rs->context_id = %i\t|", rs->archreg, rs->src_archreg[0], rs->src_archreg[1], rs->context_id);
 
 			if((out1 != 0) && (out1 != 32))
 			{
@@ -3475,6 +3482,7 @@ void register_rename(unsigned int core_num)
 							assert(rs->regs_index==Rlist[2]);
 							rs->regs_R = regs_R[2];
 						}
+						printf(" arch_reg_cnts[%i]: %i\n|", disp_context_id, cores[core_num].reg_file.arch_reg_cnts[disp_context_id]++);
 					}
 					else
 					{
@@ -3507,7 +3515,7 @@ void register_rename(unsigned int core_num)
 						//This lets us keep track of FP via regs_index.
 						rs->regs_index+=32;
 					}
-					rs->physreg = cores[core_num].reg_file.alloc_physreg(rs,sim_cycle,contexts[disp_context_id].rename_table);
+					rs->physreg = cores[core_num].reg_file.alloc_physreg(rs,sim_cycle,contexts[disp_context_id].rename_table, disp_context_id);
 					assert(rs->physreg >= 0);
 				}
 				rs->dest_format = my_regs.dest;
@@ -3556,7 +3564,8 @@ void register_rename(unsigned int core_num)
 				lsq->ptrace_seq = pseq;
 				lsq->context_id = disp_context_id;
 				lsq->disp_cycle = 0;
-				lsq->rename_cycle = sim_cycle;
+				lsq->rename_cycle = sim_cycle; // If this was recent maybe it can also be used as a counter?
+				// NOTE(MSR): This might need to be checked out too.
 				lsq->archreg = out1;
 				lsq->src_archreg[0] = in1;
 				lsq->src_archreg[1] = in2;
@@ -3581,6 +3590,7 @@ void register_rename(unsigned int core_num)
 
 				//install operation in the ROB and LSQ
 				n_renamed++;
+				// cores[core_num].reg_file.arch_reg_cnts[disp_context_id]++;
 				contexts[disp_context_id].ROB_tail = (contexts[disp_context_id].ROB_tail + 1) % contexts[disp_context_id].ROB.size();
 				contexts[disp_context_id].ROB_num++;
 				contexts[disp_context_id].LSQ_tail = (contexts[disp_context_id].LSQ_tail + 1) % contexts[disp_context_id].LSQ.size();
@@ -3592,6 +3602,7 @@ void register_rename(unsigned int core_num)
 			{
 				//Wattch: Regfile writes taken care of inside ruu_link_idep
 				//install operation in the ROB
+				// cores[core_num].reg_file.arch_reg_cnts[disp_context_id]++;
 				n_renamed++;
 				contexts[disp_context_id].ROB_tail = (contexts[disp_context_id].ROB_tail + 1) % contexts[disp_context_id].ROB.size();
 				contexts[disp_context_id].ROB_num++;
@@ -3639,7 +3650,6 @@ void register_rename(unsigned int core_num)
 				contexts[disp_context_id].recover_PC = regs->regs_NPC;
 			}
 		}
-
 		//entered decode/allocate stage, indicate in pipe trace
 		ptrace_newstage(pseq, PST_DISPATCH,(contexts[disp_context_id].pred_PC != regs->regs_NPC) ? PEV_MPOCCURED : 0);
 		if(op == MD_NOP_OP)
@@ -4362,7 +4372,7 @@ int ff_context(unsigned int context_id, long long insts_count, ff_mode_t mode)
 	half_t temp_half = 0;
 	word_t temp_word = 0;
 	qword_t temp_qword = 0;
-
+	
 	//execute the instruction
 	switch(op)
 	{

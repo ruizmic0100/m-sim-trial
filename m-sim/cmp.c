@@ -92,7 +92,8 @@ core_t::core_t(const core_t & rhs)
 
 	bimod_nelt(rhs.bimod_nelt),cbimod_nelt(rhs.cbimod_nelt),twolev_nelt(rhs.twolev_nelt),ctwolev_nelt(rhs.ctwolev_nelt),
 	comb_nelt(rhs.comb_nelt),ccomb_nelt(rhs.ccomb_nelt),btb_nelt(rhs.btb_nelt),cbtb_nelt(rhs.cbtb_nelt),
-	lock_flag(rhs.lock_flag),locked_physical_address(rhs.locked_physical_address)
+	lock_flag(rhs.lock_flag),locked_physical_address(rhs.locked_physical_address),
+	reg_cap(20)
 {
 	bimod_config[0] = rhs.bimod_config[0];
 	twolev_config[0] = rhs.twolev_config[0];
@@ -127,7 +128,7 @@ void core_t::Clear_Entry_From_Queues(ROB_entry * entry)
 void core_t::reserveArch(int contexts_per_core)
 {
 	max_contexts=contexts_per_core;
-	for(unsigned int i=0;i<(32*max_contexts);i++)
+	for(unsigned int i=0;i<(32*max_contexts);i++) // (MSR): Cap it here.
 	{
 		reg_file.reg_file_access(i,REG_INT).state = REG_ARCH;
 		reg_file.reg_file_access(i,REG_FP).state = REG_ARCH;
@@ -213,12 +214,11 @@ bool core_t::addcontext(context & thecontext)
 	IFQ_list[location] = thecontext.id;
 
 	std::vector<int> newreg = getArch();
-	for(int i=0;i<32;i++)
+	for(int i=0;i<32;i++) // (MSR): Applied reg_cap here too.
 	{
 		thecontext.rename_table[i] = newreg[i];
 		thecontext.rename_table[i+32] = newreg[i+32];
 	}
-
 	thecontext.core_id = id;
 	return TRUE;
 }
@@ -459,7 +459,7 @@ void core_t::flushcontext(context & target, counter_t & sim_num_insn)
 
 //Rollback the target thread such that ROB_entry is at the head of the ROB.
 //This will always leave at least 1 instruction in the ROB!
-void core_t::rollbackTo(context & target, counter_t & sim_num_insn, ROB_entry * targetinst, bool branch_misprediction)
+void core_t::rollbackTo(context & target, counter_t & sim_num_insn, ROB_entry * targetinst, bool branch_misprediction, int (&arch_reg_caps)[4])
 {
 	if(branch_misprediction)
 	{	//if a branch misprediction, reset spec_mode
@@ -569,6 +569,7 @@ void core_t::rollbackTo(context & target, counter_t & sim_num_insn, ROB_entry * 
 			if(target.ROB[ROB_index].dest_format == REG_INT)
 			{
 				target.DCRA_int_rf--;
+				arch_reg_caps[targetinst->context_id]--;
 				assert(target.DCRA_int_rf >= 0);
 			}
 			else
@@ -581,6 +582,7 @@ void core_t::rollbackTo(context & target, counter_t & sim_num_insn, ROB_entry * 
 			int index = target.ROB[ROB_index].regs_index;
 			if(index>=32)
 			{
+				// NOTE(MSR): possibly decrement here.
 				target.regs.regs_F[index-32] = target.ROB[ROB_index].regs_F;
 			}	
 			else
