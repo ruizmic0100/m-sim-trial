@@ -3467,7 +3467,9 @@ void register_rename(unsigned int core_num)
 					{
 						/******* DCRA *********/
 						contexts[disp_context_id].DCRA_int_rf++;
+						printf("%i\n", cores[core_num].reg_file.size());
 						assert(contexts[disp_context_id].DCRA_int_rf <= cores[core_num].reg_file.size());
+						printf("int_rf: %i\n", contexts[disp_context_id].DCRA_int_rf);
 						/**********************/
 						rs->regs_index = DGPR(out1);
 						if(rs->regs_index==Rlist[0])
@@ -3482,7 +3484,8 @@ void register_rename(unsigned int core_num)
 							assert(rs->regs_index==Rlist[2]);
 							rs->regs_R = regs_R[2];
 						}
-						printf(" arch_reg_cnts[%i]: %i\n|", disp_context_id, cores[core_num].reg_file.arch_reg_cnts[disp_context_id]++);
+						cores[core_num].reg_file.arch_reg_cnts[disp_context_id]++;
+						printf("arch_reg_cnts[%i]: %i\n", disp_context_id, cores[core_num].reg_file.arch_reg_cnts[disp_context_id]);
 					}
 					else
 					{
@@ -3590,7 +3593,6 @@ void register_rename(unsigned int core_num)
 
 				//install operation in the ROB and LSQ
 				n_renamed++;
-				// cores[core_num].reg_file.arch_reg_cnts[disp_context_id]++;
 				contexts[disp_context_id].ROB_tail = (contexts[disp_context_id].ROB_tail + 1) % contexts[disp_context_id].ROB.size();
 				contexts[disp_context_id].ROB_num++;
 				contexts[disp_context_id].LSQ_tail = (contexts[disp_context_id].LSQ_tail + 1) % contexts[disp_context_id].LSQ.size();
@@ -3602,7 +3604,6 @@ void register_rename(unsigned int core_num)
 			{
 				//Wattch: Regfile writes taken care of inside ruu_link_idep
 				//install operation in the ROB
-				// cores[core_num].reg_file.arch_reg_cnts[disp_context_id]++;
 				n_renamed++;
 				contexts[disp_context_id].ROB_tail = (contexts[disp_context_id].ROB_tail + 1) % contexts[disp_context_id].ROB.size();
 				contexts[disp_context_id].ROB_num++;

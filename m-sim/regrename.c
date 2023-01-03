@@ -148,6 +148,7 @@ int reg_file_t::alloc_physreg(ROB_entry* rob_entry,tick_t sim_cycle,std::vector<
 	physreg_t * target = NULL;
 	if(my_regs.dest==REG_INT)
 	{
+		// TODO: Maybe increment here instead?
 		target = &intregs.data[rob_entry->physreg];
 	}
 	else

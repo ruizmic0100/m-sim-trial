@@ -290,6 +290,7 @@ bool core_t::TransferContext(context & thecontext, counter_t & sim_num_insn, cor
 
 void core_t::flushcontext(context & target, counter_t & sim_num_insn)
 {
+	printf("flushcontext: I ran.\n");
 	//Turn off spec_mode for the context, it is being flushed, spec_mode needs to be removed if applied.
 	target.spec_mode = 0;
 
@@ -395,6 +396,7 @@ void core_t::flushcontext(context & target, counter_t & sim_num_insn)
 			/*********** DCRA ************/
 			if(target.ROB[ROB_index].dest_format == REG_INT)
 			{
+				printf("flushcontext: released physical register of REG_INT dest_format.\n");
 				target.DCRA_int_rf--;
 				assert(target.DCRA_int_rf >= 0);
 			}
@@ -569,7 +571,7 @@ void core_t::rollbackTo(context & target, counter_t & sim_num_insn, ROB_entry * 
 			if(target.ROB[ROB_index].dest_format == REG_INT)
 			{
 				target.DCRA_int_rf--;
-				arch_reg_caps[targetinst->context_id]--;
+				arch_reg_caps[target.id]--;
 				assert(target.DCRA_int_rf >= 0);
 			}
 			else
@@ -582,11 +584,11 @@ void core_t::rollbackTo(context & target, counter_t & sim_num_insn, ROB_entry * 
 			int index = target.ROB[ROB_index].regs_index;
 			if(index>=32)
 			{
-				// NOTE(MSR): possibly decrement here.
 				target.regs.regs_F[index-32] = target.ROB[ROB_index].regs_F;
 			}	
 			else
 			{
+				// NOTE(MSR): Is this where the rob has the true registers allocated to it?
 				target.regs.regs_R[index] = target.ROB[ROB_index].regs_R;
 			}
 		}

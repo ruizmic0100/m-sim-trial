@@ -124,6 +124,7 @@ class core_t
 		// (MSR): My architeectural register cap value.
 		unsigned int reg_cap;
 
+		// NOTE(MSR): I think each context gets 32 int arch registers.
 		//Returns a vector with 32 int Arch registers and 32 fp Arch registers
 		//These represent a set of architectural registers for a context to use
 		//These must be given to the context, this function allocates those registers for use!
