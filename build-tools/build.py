@@ -11,7 +11,7 @@ def initial_setup():
     print("Initial Setup Complete.")
 
 def build_normal():
-    instr_1 = f"cd {project_root_dir_path} && cd m-sim && make"
+    instr_1 = f"cd {project_root_dir_path} && cd m-sim_v3.0 && make"
     subprocess.run(instr_1, shell=True, universal_newlines=False)
 
 if __name__ == "__main__":

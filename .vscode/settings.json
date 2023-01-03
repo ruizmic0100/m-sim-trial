@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "regs.h": "c"
+        "regs.h": "c",
+        "smt.h": "c",
+        "sim-outorder.h": "c"
     }
 }
