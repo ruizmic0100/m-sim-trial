@@ -1408,6 +1408,7 @@ void sim_check_options()
 		}
 
 		cores[i].fu_pool = new res_pool("fu-pool", &cores[i].fu_CMP[0], cores[i].fu_CMP.size());
+		printf("res_pool configs: %s\t%i\t%i\n", cores[i].fu_pool->name, cores[i].fu_pool->resources->quantity, cores[i].fu_CMP.size());
 
 		//register power stats
 		cores[i].power.core_id = i;
@@ -1956,13 +1957,14 @@ void commit(unsigned int core_num)
 
 			if((MD_OP_FLAGS(contexts[context_id].LSQ[contexts[context_id].LSQ_head].op) & (F_MEM|F_STORE)) == (F_MEM|F_STORE))
 			{
-				if(cores[core_num].write_buf.size() == cores[core_num].write_buf_size)
-				{
+				// NOTE(MSR): This erases the beginning of the round robin buffer when it gets full
+				// if(cores[core_num].write_buf.size() == cores[core_num].write_buf_size)
+				// {
 					while(!cores[core_num].write_buf.empty() && (*(cores[core_num].write_buf.begin()) < sim_cycle))
 					{
 						cores[core_num].write_buf.erase(cores[core_num].write_buf.begin());
 					}
-				}
+				// }
 				//stores must retire their store value to the cache at commit. Try to get a store port (functional unit allocation)
 				res_template *fu = res_get(cores[core_num].fu_pool, MD_OP_FUCLASS(contexts[context_id].LSQ[contexts[context_id].LSQ_head].op));
 				if(fu && (cores[core_num].write_buf.size() < cores[core_num].write_buf_size))
@@ -2002,8 +2004,15 @@ void commit(unsigned int core_num)
 
 						write_finish = std::max(write_finish, sim_cycle + lat);
 					}
-					cores[core_num].write_buf.insert(write_finish);
+					cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
 					assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
+
+
+					printf("current write_buf_size: %i\tCurrent Thread: %i\n", cores[core_num].write_buf.size(), context_id);
+					for (std::set<tick_t>::iterator wb_entry = cores[core_num].write_buf.begin(); wb_entry != cores[core_num].write_buf.end(); wb_entry++) {
+						printf("write_buf info -> write_finish: %lld\t\n", *wb_entry); // FIXME(MSR): Make it so that it remembers which thread assigned it not just show current thread.
+					}
+					printf("LSQ_num: %u\n------------\n", contexts[context_id].LSQ_num);
 				}
 				else
 				{
@@ -4635,8 +4644,9 @@ void sim_main()
 	}
 	//main simulator loop, NOTE: the pipe stages are traverse in reverse order
 	//to eliminate this/next state synchronization and relaxation problems
-	for(;;)
+	for(int i=0;i<100;i++)
 	{
+		printf("-------------- New Sim Cycle %d ---------------\n", sim_cycle);
 		for(int i=0;i<num_contexts;i++)
 		{
 			//ROB/LSQ sanity checks
