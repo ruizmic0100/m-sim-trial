@@ -1865,6 +1865,13 @@ void readyq_enqueue(ROB_entry *rs)		//RS to enqueue
 
 }
 
+unsigned int T0_cnt = 0;
+unsigned int T1_cnt = 0;
+unsigned int T2_cnt = 0;
+unsigned int T3_cnt = 0;
+unsigned int wb_full_cnt = 0;
+unsigned int LSQ_full_cnt = 0;
+
 //COMMIT() - instruction retirement pipeline stage
 
 //this function commits the results of the oldest completed entries from the
@@ -1957,6 +1964,14 @@ void commit(unsigned int core_num)
 
 			if((MD_OP_FLAGS(contexts[context_id].LSQ[contexts[context_id].LSQ_head].op) & (F_MEM|F_STORE)) == (F_MEM|F_STORE))
 			{
+				if (cores[core_num].write_buf.size() == cores[core_num].write_buf_size)
+				{
+					wb_full_cnt++;
+				}
+
+				if (contexts[context_id].LSQ_num == 48) {
+					LSQ_full_cnt++;
+				}
 				// NOTE(MSR): This erases the beginning of the round robin buffer when it gets full
 				// if(cores[core_num].write_buf.size() == cores[core_num].write_buf_size)
 				// {
@@ -2007,12 +2022,30 @@ void commit(unsigned int core_num)
 					cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
 					assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
 
-
-					printf("current write_buf_size: %i\tCurrent Thread: %i\n", cores[core_num].write_buf.size(), context_id);
-					for (std::set<tick_t>::iterator wb_entry = cores[core_num].write_buf.begin(); wb_entry != cores[core_num].write_buf.end(); wb_entry++) {
-						printf("write_buf info -> write_finish: %lld\t\n", *wb_entry); // FIXME(MSR): Make it so that it remembers which thread assigned it not just show current thread.
+					switch (context_id) {
+						case 0:
+							T0_cnt++;
+							break;
+						case 1:
+							T1_cnt++;
+							break;
+						case 2:
+							T2_cnt++;
+							break;
+						case 3:
+							T3_cnt++;
+							break;
+						default:
+							printf("Could not interpret context id\n");
+							break;
 					}
-					printf("LSQ_num: %u\n------------\n", contexts[context_id].LSQ_num);
+
+					printf("current write_buf_size: %i\tWB_FULL_CNT: %i\tCurrent Thread: %i\n", cores[core_num].write_buf.size(), wb_full_cnt, context_id);
+					for (std::set<tick_t>::iterator wb_entry = cores[core_num].write_buf.begin(); wb_entry != cores[core_num].write_buf.end(); wb_entry++) {
+						printf("write_buf entry info -> write_finish: %lld\t\n", *wb_entry); // FIXME(MSR): Make it so that it remembers which thread assigned it not just show current thread.
+					}
+					printf("Thread Dominance: T0:%u   T1:%u\t T2:%u\t T3:%u\n", T0_cnt, T1_cnt, T2_cnt, T3_cnt);
+					printf("LSQ_num: %u\tLSQ_full_cnt: %u\n", contexts[context_id].LSQ_num, LSQ_full_cnt);
 				}
 				else
 				{
@@ -4644,7 +4677,7 @@ void sim_main()
 	}
 	//main simulator loop, NOTE: the pipe stages are traverse in reverse order
 	//to eliminate this/next state synchronization and relaxation problems
-	for(int i=0;i<100;i++)
+	for(int i=0;i<1000;i++)
 	{
 		printf("-------------- New Sim Cycle %d ---------------\n", sim_cycle);
 		for(int i=0;i<num_contexts;i++)
