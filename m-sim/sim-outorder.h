@@ -44,6 +44,8 @@
 //added for Wattch
 #include "power.h"
 
+#include <map>
+
 #define COMMIT_TIMEOUT 100000
 
 /* simulator options */

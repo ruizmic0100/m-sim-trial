@@ -1865,12 +1865,16 @@ void readyq_enqueue(ROB_entry *rs)		//RS to enqueue
 
 }
 
+// TODO(MSR): make this cleaner. Put it at the top of the file.
 unsigned int T0_cnt = 0;
 unsigned int T1_cnt = 0;
 unsigned int T2_cnt = 0;
 unsigned int T3_cnt = 0;
 unsigned int wb_full_cnt = 0;
 unsigned int LSQ_full_cnt = 0;
+
+std::map<tick_t, size_t> assignment_threads;
+
 
 //COMMIT() - instruction retirement pipeline stage
 
@@ -2022,6 +2026,7 @@ void commit(unsigned int core_num)
 					cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
 					assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
 
+
 					switch (context_id) {
 						case 0:
 							T0_cnt++;
@@ -2041,11 +2046,17 @@ void commit(unsigned int core_num)
 					}
 
 					printf("current write_buf_size: %i\tWB_FULL_CNT: %i\tCurrent Thread: %i\n", cores[core_num].write_buf.size(), wb_full_cnt, context_id);
+
 					for (std::set<tick_t>::iterator wb_entry = cores[core_num].write_buf.begin(); wb_entry != cores[core_num].write_buf.end(); wb_entry++) {
-						printf("write_buf entry info -> write_finish: %lld\t\n", *wb_entry); // FIXME(MSR): Make it so that it remembers which thread assigned it not just show current thread.
+						if (assignment_threads.find(*wb_entry) == assignment_threads.end()) { assignment_threads[*wb_entry] = context_id; }
+						printf("write_buf entry info -> write_finish: %lld\t assignment_thread: %i\n", *wb_entry, assignment_threads[*wb_entry]);
 					}
+
 					printf("Thread Dominance: T0:%u   T1:%u\t T2:%u\t T3:%u\n", T0_cnt, T1_cnt, T2_cnt, T3_cnt);
-					printf("LSQ_num: %u\tLSQ_full_cnt: %u\n", contexts[context_id].LSQ_num, LSQ_full_cnt);
+
+					for (size_t i = 0; i <= contexts.size(); i++) {
+						printf("LSQ_num[%i]: %u\t", i, contexts[i].LSQ_num); // TODO(MSR): FIX this per thread and it can also not hit the WB
+					}
 				}
 				else
 				{
