@@ -1921,6 +1921,10 @@ void commit(unsigned int core_num)
 		int context_id = contexts_left[current_context];
 		int events = 0;
 		int lat;		//latency and default commit events
+		int cache_lat;
+		int tlb_lat;
+		int write_finish_cache;
+		int write_finish_tlb;
 
 		if(contexts[context_id].ROB_num<=0)
 		{
@@ -1988,7 +1992,7 @@ void commit(unsigned int core_num)
 				res_template *fu = res_get(cores[core_num].fu_pool, MD_OP_FUCLASS(contexts[context_id].LSQ[contexts[context_id].LSQ_head].op));
 				if(fu && (cores[core_num].write_buf.size() < cores[core_num].write_buf_size))
 				{
-					//reserve the functional unit
+					// reserve the functional unit
 					if(fu->master->busy)
 						panic("functional unit already in use");
 
@@ -2006,11 +2010,14 @@ void commit(unsigned int core_num)
 						//commit store value to D-cache
 						lat = cores[core_num].cache_dl1->cache_access(Write, (contexts[context_id].LSQ[contexts[context_id].LSQ_head].addr&~3),
 							context_id, NULL, 4, sim_cycle, NULL, NULL);
+						
+						cache_lat = lat;
 
 						if(lat > cores[core_num].cache_dl1_lat)
 							events |= PEV_CACHEMISS;
 
 						write_finish = std::max(write_finish, sim_cycle + lat);
+						write_finish_cache = write_finish;
 					}
 
 					//all loads and stores must access D-TLB
@@ -2021,42 +2028,69 @@ void commit(unsigned int core_num)
 						if(lat > 1)
 							events |= PEV_TLBMISS;
 
+						tlb_lat = lat;
+
 						write_finish = std::max(write_finish, sim_cycle + lat);
+						write_finish_tlb = write_finish;
 					}
-					cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
-					assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
+					
 
+					// TODO(MSR): reserve only for L1 hits and or L2 Hits.
+					if (cores[core_num].write_buf.size() < 12) {
+						cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
+						assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
 
-					switch (context_id) {
-						case 0:
-							T0_cnt++;
-							break;
-						case 1:
-							T1_cnt++;
-							break;
-						case 2:
-							T2_cnt++;
-							break;
-						case 3:
-							T3_cnt++;
-							break;
-						default:
-							printf("Could not interpret context id\n");
-							break;
+						/* ------------------------- After this is when everything seems to proc ------------------------------ */
+
+						switch (context_id) {
+							case 0:
+								T0_cnt++;
+								break;
+							case 1:
+								T1_cnt++;
+								break;
+							case 2:
+								T2_cnt++;
+								break;
+							case 3:
+								T3_cnt++;
+								break;
+							default:
+								printf("Could not interpret context id\n");
+								break;
+						}
+
+						printf("current write_buf_size: %i\tWB_FULL_CNT: %i\tCurrent Thread: %i\n\n", cores[core_num].write_buf.size(), wb_full_cnt, context_id);
+
+						for (std::set<tick_t>::iterator wb_entry = cores[core_num].write_buf.begin(); wb_entry != cores[core_num].write_buf.end(); wb_entry++) {
+							if (assignment_threads.find(*wb_entry) == assignment_threads.end()) { 
+								assignment_threads[*wb_entry] = context_id;
+								if (events == PEV_CACHEMISS) printf(" DL1-CACHEMISS ");
+								if (events == PEV_TLBMISS) printf(" PEV_TLBMISS ");
+								printf(" -> "); 
+							}
+							printf("write_buf entry -> write_finish: %lld\t assignment_thread: %i\n", *wb_entry, assignment_threads[*wb_entry]);
+						}
+
+						printf("\nThread Dominance: T0:%u   T1:%u\t T2:%u\t T3:%u\n", T0_cnt, T1_cnt, T2_cnt, T3_cnt);
+
+						for (size_t i = 0; i <= contexts.size(); i++) {
+							printf("LSQ_num[%i]: %u\t", i, contexts[i].LSQ_num); // TODO(MSR): FIX this per thread and it can also not hit the WB
+						}
+						printf("\n\n");
+					}  else {
+						if (cores[core_num].write_buf.size() < 14 && events == PEV_CACHEMISS) { // L1 Miss - L2 Hit
+							printf("\t-------------- L2 CACHE HIT PASSED THROUGH[%ld]: %lli \n", cores[core_num].write_buf.size(), write_finish_cache);
+							cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
+							assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
+						} 
+						if (cores[core_num].write_buf.size() < 16 && cache_lat == 1 && events != PEV_CACHEMISS && events != PEV_TLBMISS) { 									// L1 Hit
+							printf("\t------ L1 CACHE HIT PASSED THROUGH[%ld]: %lli \n", cores[core_num].write_buf.size(), write_finish_cache);
+							cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
+							assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
+						}
 					}
 
-					printf("current write_buf_size: %i\tWB_FULL_CNT: %i\tCurrent Thread: %i\n", cores[core_num].write_buf.size(), wb_full_cnt, context_id);
-
-					for (std::set<tick_t>::iterator wb_entry = cores[core_num].write_buf.begin(); wb_entry != cores[core_num].write_buf.end(); wb_entry++) {
-						if (assignment_threads.find(*wb_entry) == assignment_threads.end()) { assignment_threads[*wb_entry] = context_id; }
-						printf("write_buf entry info -> write_finish: %lld\t assignment_thread: %i\n", *wb_entry, assignment_threads[*wb_entry]);
-					}
-
-					printf("Thread Dominance: T0:%u   T1:%u\t T2:%u\t T3:%u\n", T0_cnt, T1_cnt, T2_cnt, T3_cnt);
-
-					for (size_t i = 0; i <= contexts.size(); i++) {
-						printf("LSQ_num[%i]: %u\t", i, contexts[i].LSQ_num); // TODO(MSR): FIX this per thread and it can also not hit the WB
-					}
 				}
 				else
 				{
@@ -2639,6 +2673,7 @@ void selection(unsigned int core_num)
 				  		}
 
 						//was the value store forwared from the LSQ?
+						// NOTE(MSR): if the store address is the same as the load address then just forward that instead.
 						if(!load_lat)
 						{
 							int valid_addr = MD_VALID_ADDR(rs->addr);
@@ -4688,7 +4723,7 @@ void sim_main()
 	}
 	//main simulator loop, NOTE: the pipe stages are traverse in reverse order
 	//to eliminate this/next state synchronization and relaxation problems
-	for(int i=0;i<1000;i++)
+	for(int i=0;i<10000;i++)
 	{
 		printf("-------------- New Sim Cycle %d ---------------\n", sim_cycle);
 		for(int i=0;i<num_contexts;i++)
