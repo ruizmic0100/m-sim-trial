@@ -89,3 +89,9 @@ Solution #2
 * Usually this error appears when you pip install matplotlib and you are trying to display a plot in a GUI window and you do not have a python module for GUI display.
 * The authors of ```matplotlib``` made the pypi software deps not depend on any GUI backend because some people **need** ```matplotlib``` without any GUI backend.
 ---
+
+# API Notes
+
+## bpred.c
+
+branch predictor routines

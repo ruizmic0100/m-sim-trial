@@ -2,6 +2,9 @@
     "files.associations": {
         "regs.h": "c",
         "smt.h": "c",
-        "sim-outorder.h": "c"
+        "sim-outorder.h": "c",
+        "*.def": "c",
+        "bpred.h": "c",
+        "retstack.h": "c"
     }
 }

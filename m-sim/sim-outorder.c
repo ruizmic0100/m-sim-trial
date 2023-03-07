@@ -88,6 +88,8 @@
 
 #include "sim-outorder.h"
 
+// TODO(MSR): Figure out why the write_finish time is not consistent. Maybe bus contention model is kicking in and adding some delay.
+
 /*
  * This file implements a very detailed out-of-order issue superscalar
  * processor with a two-level memory system and speculative execution support.
@@ -1921,10 +1923,11 @@ void commit(unsigned int core_num)
 		int context_id = contexts_left[current_context];
 		int events = 0;
 		int lat;		//latency and default commit events
-		int cache_lat;
+		int dl1_lat;
 		int tlb_lat;
 		int write_finish_cache;
 		int write_finish_tlb;
+		unsigned long long dl2_lat;
 
 		if(contexts[context_id].ROB_num<=0)
 		{
@@ -2010,15 +2013,30 @@ void commit(unsigned int core_num)
 						//commit store value to D-cache
 						lat = cores[core_num].cache_dl1->cache_access(Write, (contexts[context_id].LSQ[contexts[context_id].LSQ_head].addr&~3),
 							context_id, NULL, 4, sim_cycle, NULL, NULL);
-						
-						cache_lat = lat;
+
+						dl1_lat = lat;
 
 						if(lat > cores[core_num].cache_dl1_lat)
 							events |= PEV_CACHEMISS;
 
 						write_finish = std::max(write_finish, sim_cycle + lat);
 						write_finish_cache = write_finish;
+						// printf("write_finish_dl1_cache: %lld\n", write_finish_cache);
 					}
+
+					// if(cores[core_num].cache_dl2)
+					// {
+					// 	dl2_lat = cores[contexts[context_id].core_id].cache_dl2->cache_access(Write, (contexts[context_id].LSQ[contexts[context_id].LSQ_head].addr&~3),
+					// 		context_id, NULL, 4, sim_cycle, NULL, NULL);
+
+					// }
+
+					// if (cores[core_num].cache_dl1->hit_latency == 1)
+					// 	printf("l1 hit\n");
+					
+					// if (cores[core_num].cache_dl2->hit_latency == 10)
+					// 	printf("l2 hit\n");
+
 
 					//all loads and stores must access D-TLB
 					if(cores[core_num].dtlb)
@@ -2033,10 +2051,9 @@ void commit(unsigned int core_num)
 						write_finish = std::max(write_finish, sim_cycle + lat);
 						write_finish_tlb = write_finish;
 					}
-					
 
 					// TODO(MSR): reserve only for L1 hits and or L2 Hits.
-					if (cores[core_num].write_buf.size() < 12) {
+					if (cores[core_num].write_buf.size() < 13) {
 						cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
 						assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
 
@@ -2060,32 +2077,32 @@ void commit(unsigned int core_num)
 								break;
 						}
 
-						printf("current write_buf_size: %i\tWB_FULL_CNT: %i\tCurrent Thread: %i\n\n", cores[core_num].write_buf.size(), wb_full_cnt, context_id);
+						// printf("current write_buf_size: %i\tWB_FULL_CNT: %i\tCurrent Thread: %i\n\n", cores[core_num].write_buf.size(), wb_full_cnt, context_id);
 
 						for (std::set<tick_t>::iterator wb_entry = cores[core_num].write_buf.begin(); wb_entry != cores[core_num].write_buf.end(); wb_entry++) {
 							if (assignment_threads.find(*wb_entry) == assignment_threads.end()) { 
 								assignment_threads[*wb_entry] = context_id;
-								if (events == PEV_CACHEMISS) printf(" DL1-CACHEMISS ");
-								if (events == PEV_TLBMISS) printf(" PEV_TLBMISS ");
-								printf(" -> "); 
+								// if (events == PEV_CACHEMISS) printf(" CACHEMISS ");
+								// if (events == PEV_TLBMISS) printf(" PEV_TLBMISS ");
+								// printf(" -> "); 
 							}
-							printf("write_buf entry -> write_finish: %lld\t assignment_thread: %i\n", *wb_entry, assignment_threads[*wb_entry]);
+							// printf("write_buf entry -> write_finish: %lld\t assignment_thread: %i\n", *wb_entry, assignment_threads[*wb_entry]);
 						}
 
-						printf("\nThread Dominance: T0:%u   T1:%u\t T2:%u\t T3:%u\n", T0_cnt, T1_cnt, T2_cnt, T3_cnt);
+						// printf("\nThread Dominance: T0:%u   T1:%u\t T2:%u\t T3:%u\n", T0_cnt, T1_cnt, T2_cnt, T3_cnt);
 
 						for (size_t i = 0; i <= contexts.size(); i++) {
-							printf("LSQ_num[%i]: %u\t", i, contexts[i].LSQ_num); // TODO(MSR): FIX this per thread and it can also not hit the WB
+							// printf("LSQ_num[%i]: %u\t", i, contexts[i].LSQ_num); // TODO(MSR): FIX this per thread and it can also not hit the WB
 						}
 						printf("\n\n");
 					}  else {
-						if (cores[core_num].write_buf.size() < 14 && events == PEV_CACHEMISS) { // L1 Miss - L2 Hit
-							printf("\t-------------- L2 CACHE HIT PASSED THROUGH[%ld]: %lli \n", cores[core_num].write_buf.size(), write_finish_cache);
+						if (cores[core_num].write_buf.size() < 15 && cores[core_num].cache_dl2->hit_latency == 10) { // L1 miss - L2 Hit
+							printf("\tL2 CACHE HIT PASSED THROUGH[%ld]: %lli \n", cores[core_num].write_buf.size(), write_finish_cache);
 							cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
 							assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
 						} 
-						if (cores[core_num].write_buf.size() < 16 && cache_lat == 1 && events != PEV_CACHEMISS && events != PEV_TLBMISS) { 									// L1 Hit
-							printf("\t------ L1 CACHE HIT PASSED THROUGH[%ld]: %lli \n", cores[core_num].write_buf.size(), write_finish_cache);
+						else if (cores[core_num].write_buf.size() < 16 && cores[core_num].cache_dl1->hit_latency == 1) { 									// L1 Hit
+							printf("\tL1 CACHE HIT PASSED THROUGH[%ld]: %lli \n", cores[core_num].write_buf.size(), write_finish_cache);
 							cores[core_num].write_buf.insert(write_finish); // NOTE(MSR): write_buf is a set of ticks so this tick value is unique and will occupy space in the write_buf until cleared.
 							assert(cores[core_num].write_buf.size() <= cores[core_num].write_buf_size);
 						}
@@ -2673,7 +2690,7 @@ void selection(unsigned int core_num)
 				  		}
 
 						//was the value store forwared from the LSQ?
-						// NOTE(MSR): if the store address is the same as the load address then just forward that instead.
+						// NOTE(MSR): store forwarding - if the store address is the same as the load address then just forward that instead.
 						if(!load_lat)
 						{
 							int valid_addr = MD_VALID_ADDR(rs->addr);
@@ -2705,6 +2722,7 @@ void selection(unsigned int core_num)
 										}
 									}
 								}
+								// printf("Selection(): L1 Miss: %i\tL2 Miss: %i\tL3 Miss: %i\n", rs->L1_miss, rs->L2_miss, rs->L3_miss);
 							}
 							else
 							{

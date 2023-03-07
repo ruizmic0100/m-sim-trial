@@ -5,7 +5,7 @@ import argparse
 
 
 def run_standard(int_reg_cap):
-    command = f"cd ../spec2006/ && ../m-sim-trial/m-sim/sim-outorder -rf:size 160 -max_contexts_per_core 4 -int_reg_cap {int_reg_cap} astarNS.1.arg dealIINS.1.arg gobmkNS.1.arg lbmNS.1.arg"
+    command = f"cd ../spec2006/ && ../m-sim-trial/m-sim/sim-outorder -rf:size 160 -max_contexts_per_core 4 -int_reg_cap {int_reg_cap} astarNS.1.arg dealIINS.1.arg lbmNS.1.arg lbmNS.1.arg"
     subprocess.run(command, shell=True);
 
 def run_mix(int_reg_cap):

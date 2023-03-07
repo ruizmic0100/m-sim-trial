@@ -550,6 +550,7 @@ unsigned long long cache_t::cache_access(mem_cmd cmd,	//access type, Read or Wri
 		if(repl_addr)
 			*repl_addr = CACHE_MK_BADDR(this, repl->tag, set);
 
+		// NOTES(MSR): This might be the reason as to why the latency value is a bit different than what is expected.
 		//don't replace the block until outstanding misses are satisfied
 		lat = MAX(0, repl->ready - now);
 //		lat += MAX(0, repl->ready - now);
@@ -586,6 +587,7 @@ unsigned long long cache_t::cache_access(mem_cmd cmd,	//access type, Read or Wri
 #endif
 			//Add latency needed to write back
 			lat += blk_access_fn(Write, CACHE_MK_BADDR(this, repl->tag, set), bsize, repl, now+lat, context_id);
+			// printf("blk_access_fn: %p | %lld\n", blk_access_fn, lat);
 		}
 	}
 
@@ -644,6 +646,7 @@ unsigned long long cache_t::cache_access(mem_cmd cmd,	//access type, Read or Wri
 #endif
 
 	//return latency of the operation
+	// printf("final lat: %lld\n", lat);
 	return lat;
 
 cache_hit:
